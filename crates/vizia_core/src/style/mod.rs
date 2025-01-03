@@ -81,7 +81,7 @@ pub use vizia_style::{
 
 use vizia_style::{
     BlendMode, EasingFunction, KeyframeSelector, ParserOptions, Property, SelectorList, Selectors,
-    StyleSheet,
+    StyleSheet, TextShadow,
 };
 
 mod rule;
@@ -139,10 +139,10 @@ impl Default for SystemFlags {
     }
 }
 
-/// An enum which represents an image or a gradient.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub enum ImageOrGradient {
-    /// Represents an image by name.
+    #[default]
+    None,
     Image(String),
     /// A gradient.
     Gradient(Gradient),
@@ -289,6 +289,7 @@ pub struct Style {
 
     // Shadow
     pub(crate) shadow: AnimatableSet<Vec<Shadow>>,
+    pub(crate) text_shadow: AnimatableSet<Vec<TextShadow>>,
 
     // Text
     pub(crate) text: SparseSet<String>,
@@ -570,6 +571,10 @@ impl Style {
                     insert_keyframe(&mut self.shadow, animation_id, time, value.clone());
                 }
 
+                Property::TextShadow(value) => {
+                    insert_keyframe(&mut self.text_shadow, animation_id, time, value.clone());
+                }
+
                 // TEXT
                 Property::FontColor(value) => {
                     insert_keyframe(&mut self.font_color, animation_id, time, *value);
@@ -778,6 +783,7 @@ impl Style {
         self.background_size.play_animation(entity, animation, start_time, duration, delay);
 
         self.shadow.play_animation(entity, animation, start_time, duration, delay);
+        self.text_shadow.play_animation(entity, animation, start_time, duration, delay);
 
         self.font_color.play_animation(entity, animation, start_time, duration, delay);
         self.font_size.play_animation(entity, animation, start_time, duration, delay);
@@ -841,6 +847,7 @@ impl Style {
             | self.background_image.has_active_animation(entity, animation)
             | self.background_size.has_active_animation(entity, animation)
             | self.shadow.has_active_animation(entity, animation)
+            | self.text_shadow.has_active_animation(entity, animation)
             | self.font_color.has_active_animation(entity, animation)
             | self.font_size.has_active_animation(entity, animation)
             | self.caret_color.has_active_animation(entity, animation)
@@ -1073,6 +1080,11 @@ impl Style {
             "shadow" => {
                 self.shadow.insert_animation(animation, self.add_transition(transition));
                 self.shadow.insert_transition(rule_id, animation);
+            }
+
+            "text-shadow" => {
+                self.text_shadow.insert_animation(animation, self.add_transition(transition));
+                self.text_shadow.insert_transition(rule_id, animation);
             }
 
             "color" => {
@@ -1656,6 +1668,10 @@ impl Style {
                 self.shadow.insert_rule(rule_id, shadows);
             }
 
+            Property::TextShadow(shadows) => {
+                self.text_shadow.insert_rule(rule_id, shadows);
+            }
+
             // Cursor Icon
             Property::Cursor(cursor) => {
                 self.cursor.insert_rule(rule_id, cursor);
@@ -1813,6 +1829,7 @@ impl Style {
 
         // Box Shadow
         self.shadow.remove(entity);
+        self.text_shadow.remove(entity);
 
         // Text and Font
         self.text.remove(entity);
@@ -1980,6 +1997,7 @@ impl Style {
         self.background_size.clear_rules();
 
         self.shadow.clear_rules();
+        self.text_shadow.clear_rules();
 
         self.layout_type.clear_rules();
         self.position_type.clear_rules();

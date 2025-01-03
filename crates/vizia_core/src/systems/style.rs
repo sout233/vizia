@@ -645,8 +645,13 @@ fn link_style_data(
         should_reflow = true;
     }
 
-    // Outer Shadow
+    // Shadow
     if style.shadow.link(entity, matched_rules) {
+        should_redraw = true;
+    }
+
+    if style.text_shadow.link(entity, matched_rules) {
+        should_reflow = true;
         should_redraw = true;
     }
 
