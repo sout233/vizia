@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use hashbrown::{HashMap, HashSet};
 use vizia_storage::{LayoutTreeIterator, TreeIterator};
-use vizia_window::WindowPosition;
+use vizia_window::{GraphicsBackend, WindowPosition};
 
 use crate::animation::{AnimId, Interpolator};
 use crate::cache::CachedData;
@@ -208,6 +208,14 @@ impl<'a> EventContext<'a> {
         let parent_window = self.parent_window();
         let bounds = self.cache.get_bounds(parent_window);
         WindowSize::new(bounds.width() as u32, bounds.height() as u32)
+    }
+
+    pub fn graphics_backend(&self) -> GraphicsBackend {
+        let parent_window = self.parent_window();
+        self.windows
+            .get(&parent_window)
+            .and_then(|state| state.window_description.graphics_backend)
+            .unwrap_or_default()
     }
 
     /// Returns the [Entity] id associated with the given identifier.
