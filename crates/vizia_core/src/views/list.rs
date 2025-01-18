@@ -14,6 +14,7 @@ impl_res_simple!(Selectable);
 
 pub enum ListEvent {
     Select(usize),
+    Hover(usize),
     SelectFocused,
     SelectNext,
     SelectPrev,
@@ -33,6 +34,7 @@ pub struct List {
     selection_follows_focus: bool,
     horizontal: bool,
     on_select: Option<Box<dyn Fn(&mut EventContext, usize)>>,
+    on_hover: Option<Box<dyn Fn(&mut EventContext, usize)>>,
 }
 
 impl List {
@@ -97,6 +99,7 @@ impl List {
             selection_follows_focus: false,
             horizontal: false,
             on_select: None,
+            on_hover: None,
         }
         .build(cx, move |cx| {
             Keymap::from(vec![
@@ -281,6 +284,12 @@ impl View for List {
                     cx.emit(ListEvent::SelectFocused);
                 }
             }
+
+            ListEvent::Hover(index) => {
+                if let Some(on_hover) = &self.on_hover {
+                    on_hover(cx, index);
+                }
+            }
         })
     }
 }
@@ -306,6 +315,13 @@ impl Handle<'_, List> {
         F: 'static + Fn(&mut EventContext, usize),
     {
         self.modify(|list: &mut List| list.on_select = Some(Box::new(callback)))
+    }
+
+    pub fn on_hover<F>(self, callback: F) -> Self
+    where
+        F: 'static + Fn(&mut EventContext, usize),
+    {
+        self.modify(|list: &mut List| list.on_hover = Some(Box::new(callback)))
     }
 
     pub fn selectable<U: Into<Selectable>>(self, selectable: impl Res<U>) -> Self {
@@ -351,6 +367,7 @@ impl ListItem {
                 List::focus_visible,
             )
             .on_press(move |cx| cx.emit(ListEvent::Select(index)))
+            .on_hover(move |cx| cx.emit(ListEvent::Hover(index)))
     }
 }
 

@@ -204,11 +204,14 @@ fn parse_node<'a>(
 pub struct TextSpan {}
 
 impl TextSpan {
-    pub fn new<'a>(
+    pub fn new<'a, T>(
         cx: &'a mut Context,
-        text: &str,
+        text: impl Res<T> + Clone,
         children: impl Fn(&mut Context),
-    ) -> Handle<'a, Self> {
+    ) -> Handle<'a, Self>
+    where
+        T: ToStringLocalized,
+    {
         Self {}
             .build(cx, |cx| {
                 cx.style.text_span.insert(cx.current(), true);

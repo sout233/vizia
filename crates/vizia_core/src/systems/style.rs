@@ -754,6 +754,41 @@ pub(crate) fn compute_matched_rules(
     matched_rules.reverse();
 }
 
+pub(crate) fn compute_matched_rules2(
+    cx: &EventContext,
+    entity: Entity,
+    matched_rules: &mut Vec<(Rule, u32)>,
+) {
+    for (rule, selector_list) in cx.style.rules.iter() {
+        let mut cache = SelectorCaches::default();
+        let mut context = MatchingContext::new(
+            MatchingMode::Normal,
+            None,
+            &mut cache,
+            QuirksMode::NoQuirks,
+            NeedsSelectorFlags::No,
+            MatchingForInvalidation::No,
+        );
+
+        for selector in selector_list.slice() {
+            let matches = matches_selector(
+                selector,
+                0,
+                None,
+                &Node { entity, store: &cx.style, tree: &cx.tree, views: &cx.views },
+                &mut context,
+            );
+            if matches {
+                matched_rules.push((*rule, selector.specificity()));
+                break;
+            }
+        }
+    }
+
+    matched_rules.sort_by_cached_key(|(_, s)| *s);
+    matched_rules.reverse();
+}
+
 fn has_same_selector(cx: &Context, entity1: Entity, entity2: Entity) -> bool {
     let element1 = cx.views.get(&entity1).and_then(|view| view.element()).unwrap_or_default();
 

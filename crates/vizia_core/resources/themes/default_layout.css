@@ -298,6 +298,7 @@ popup list list-item {
     width: 1s;
     min-width: auto;
     height: 32px;
+    min-height: auto;
     padding-left: 6px;
     padding-right: 6px;
     alignment: left;
@@ -385,6 +386,7 @@ list list-item {
     min-width: auto;
     width: 1s;
     height: 30px;
+    min-height: auto;
     alignment: left;
 }
 
@@ -848,4 +850,8 @@ xypad {
 xypad .thumb {
     size: 10px;
     alignment: center;
+}
+
+inspector list.computed-list list-item {
+    height: auto;
 }
