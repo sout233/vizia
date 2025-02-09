@@ -840,6 +840,10 @@ virtual-list label {
     width: 1s;
 }
 
+virtual-list scrollbar.vertical .thumb {
+    min-height: 10px;
+}
+
 /* XY PAD */
 
 xypad {
@@ -898,4 +902,8 @@ collapsible.open .content {
     height: auto;
     max-height: auto;
     transition: max-height 300ms;
+}
+
+virtual-table list-item {
+    width: auto;
 }
