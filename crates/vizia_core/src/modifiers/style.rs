@@ -396,6 +396,7 @@ pub trait StyleModifiers: internal::Modifiable {
                         Some(ImageOrGradient::Gradient(*gradient))
                     }
                     BackgroundImage::Url(url) => Some(ImageOrGradient::Image(url.url.to_string())),
+
                     _ => None,
                 };
 

@@ -839,6 +839,10 @@ virtual-list label {
     width: 1s;
 }
 
+virtual-list .list-item {
+    min-size: auto;
+}
+
 /* XY PAD */
 
 xypad {
