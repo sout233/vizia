@@ -389,6 +389,10 @@ list list-item {
     alignment: left;
 }
 
+list.horizontal list-item {
+    width: auto;
+}
+
 /* MENU */
 
 menubar {
