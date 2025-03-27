@@ -52,7 +52,13 @@ pub trait EditableText: Sized {
 
 impl EditableText for String {
     fn edit(&mut self, range: Range<usize>, new: impl Into<Self>) {
-        self.replace_range(range, &new.into());
+        let new_text = new.into();
+
+        // Ensure that the range only falls on character boundaries.
+        let start = self.char_indices().nth(range.start).map(|(i, _)| i).unwrap_or(self.len());
+        let end = self.char_indices().nth(range.end).map(|(i, _)| i).unwrap_or(self.len());
+
+        self.replace_range(start..end, &new_text);
     }
 
     fn slice(&self, range: Range<usize>) -> Option<Cow<str>> {
