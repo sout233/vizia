@@ -618,6 +618,9 @@ fn internal_state_updates(cx: &mut Context, window_event: &WindowEvent, meta: &m
         WindowEvent::ImeCommit(_) => {
             meta.target = cx.focused;
         }
+        WindowEvent::ImePreedit(_, _) => {
+            meta.target = cx.focused;
+        }
         WindowEvent::WindowFocused(is_focused) => {
             if *is_focused {
                 cx.set_focus_pseudo_classes(cx.focused, true, true);

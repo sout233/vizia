@@ -586,6 +586,7 @@ impl ApplicationHandler<UserEvent> for Application {
                 }
                 winit::event::Ime::Preedit(text, cursor) => {
                     println!("Preedit: {:?}, Cursor: {:?}", text, cursor);
+                    self.cx.emit_window_event(window.entity, WindowEvent::ImePreedit(text, cursor));
                 }
                 winit::event::Ime::Commit(text) => {
                     println!("Commit: {:?}", text);

@@ -76,6 +76,8 @@ pub enum WindowEvent {
     CharInput(char),
     /// Emitted when an input method (IME) commits a string.
     ImeCommit(String),
+    /// Emitted when an input method (IME) changes the preedit string.
+    ImePreedit(String, Option<(usize, usize)>),
     /// Emitted when a keyboard key is pressed.
     KeyDown(Code, Option<Key>),
     /// Emitted when a keyboard key is released.

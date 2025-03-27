@@ -15,6 +15,8 @@ use unicode_segmentation::UnicodeSegmentation;
 pub enum TextEvent {
     /// Insert a string of text into the textbox.
     InsertText(String),
+    /// Update the preedit text of the textbox (for IME input).
+    UpdatePreedit(String),
     /// Reset the text of the textbox to the bound data.
     Clear,
     /// Delete a section of text, determined by the `Movement`.
@@ -210,6 +212,22 @@ where
             self.show_placeholder = text.is_empty();
             cx.style.needs_text_update(cx.current);
         }
+    }
+
+    fn update_preedit(&mut self, cx: &mut EventContext, txt: &str) {
+        // self.preedit = if txt.is_empty() { None } else { Some(txt.to_string()) };
+        if let Some(text) = cx.style.text.get_mut(cx.current) {
+            if self.show_placeholder && !txt.is_empty() {
+                text.clear();
+                self.show_placeholder = false;
+            }
+            text.edit(self.selection.range(), txt);
+            self.selection = Selection::caret(self.selection.min() + txt.len());
+            self.show_placeholder = text.is_empty();
+            cx.style.needs_text_update(cx.current);
+        }
+
+        cx.style.needs_text_update(cx.current);
     }
 
     fn delete_text(&mut self, cx: &mut EventContext, movement: Movement) {
@@ -887,6 +905,13 @@ where
                 }
             }
 
+            WindowEvent::ImePreedit(text, cursor) => {
+                if !cx.modifiers.ctrl() && !cx.modifiers.logo() && self.edit && !cx.is_read_only() {
+                    self.reset_caret_timer(cx);
+                    cx.emit(TextEvent::InsertText(text.to_string()));
+                }
+            }
+
             WindowEvent::KeyDown(code, _) => match code {
                 Code::Enter => {
                     if matches!(self.kind, TextboxKind::SingleLine) {
@@ -1133,6 +1158,10 @@ where
                         (callback)(cx, text);
                     }
                 }
+            }
+
+            TextEvent::UpdatePreedit(preedit) => {
+                self.update_preedit(cx, &preedit);
             }
 
             TextEvent::Clear => {
