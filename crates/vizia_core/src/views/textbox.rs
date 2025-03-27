@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 // use crate::accessibility::IntoNode;
 use crate::prelude::*;
 
@@ -16,7 +18,7 @@ pub enum TextEvent {
     /// Insert a string of text into the textbox.
     InsertText(String),
     /// Update the preedit text of the textbox (for IME input).
-    UpdatePreedit(String),
+    UpdatePreedit(String, Option<(usize, usize)>),
     /// Reset the text of the textbox to the bound data.
     Clear,
     /// Delete a section of text, determined by the `Movement`.
@@ -78,6 +80,7 @@ pub struct Textbox<L: Lens> {
     show_caret: bool,
     caret_timer: Timer,
     selection: Selection,
+    preedit_base_backup: Option<String>,
 }
 
 // Determines whether the enter key submits the text or inserts a new line.
@@ -164,6 +167,7 @@ where
             show_caret: true,
             caret_timer,
             selection: Selection::new(0, 0),
+            preedit_base_backup: None,
         }
         .build(cx, move |cx| {
             cx.add_listener(move |textbox: &mut Self, cx, event| {
@@ -214,16 +218,34 @@ where
         }
     }
 
-    fn update_preedit(&mut self, cx: &mut EventContext, txt: &str) {
-        // self.preedit = if txt.is_empty() { None } else { Some(txt.to_string()) };
-        if let Some(text) = cx.style.text.get_mut(cx.current) {
-            if self.show_placeholder && !txt.is_empty() {
+    fn update_preedit(
+        &mut self,
+        cx: &mut EventContext,
+        preedit_txt: &str,
+        cursor: Option<(usize, usize)>,
+    ) {
+        // self.preedit = if preedit_txt.is_empty() { None } else { Some(preedit_txt.to_string()) };
+        if let Some(mut text) = cx.style.text.get_mut(cx.current) {
+            if self.show_placeholder && !preedit_txt.is_empty() {
                 text.clear();
                 self.show_placeholder = false;
             }
-            text.edit(self.selection.range(), txt);
-            self.selection = Selection::caret(self.selection.min() + txt.len());
-            self.show_placeholder = text.is_empty();
+            // text.edit(self.selection.range(), preedit_txt);
+            let original_text = self.preedit_base_backup.clone().unwrap_or("".to_string());
+            let preedit_range = match cursor {
+                Some((start, end)) => {
+                    let start = start.min(end).min(original_text.len());
+                    let end = end.min(start).min(original_text.len());
+                    start..end
+                }
+                None => 0..0,
+            };
+            let mut finall = format!("{}{}", original_text, preedit_txt);
+            // text = &mut finall;
+            // text.edit(Range::from(0..text.len()), preedit_txt);
+
+            // self.selection = Selection::caret(self.selection.min() + preedit_txt.len());
+            // self.show_placeholder = text.is_empty();
             cx.style.needs_text_update(cx.current);
         }
 
@@ -908,7 +930,7 @@ where
             WindowEvent::ImePreedit(text, cursor) => {
                 if !cx.modifiers.ctrl() && !cx.modifiers.logo() && self.edit && !cx.is_read_only() {
                     self.reset_caret_timer(cx);
-                    cx.emit(TextEvent::InsertText(text.to_string()));
+                    cx.emit(TextEvent::UpdatePreedit(text.to_string(), *cursor));
                 }
             }
 
@@ -1160,8 +1182,8 @@ where
                 }
             }
 
-            TextEvent::UpdatePreedit(preedit) => {
-                self.update_preedit(cx, &preedit);
+            TextEvent::UpdatePreedit(preedit, cursor) => {
+                self.update_preedit(cx, preedit, *cursor);
             }
 
             TextEvent::Clear => {
