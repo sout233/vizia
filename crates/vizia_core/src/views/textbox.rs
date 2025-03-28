@@ -19,6 +19,8 @@ pub enum TextEvent {
     InsertText(String),
     /// Update the preedit text of the textbox (for IME input).
     UpdatePreedit(String, Option<(usize, usize)>),
+    /// Clear the preedit text of the textbox.
+    ClearPreedit,
     /// Reset the text of the textbox to the bound data.
     Clear,
     /// Delete a section of text, determined by the `Movement`.
@@ -231,25 +233,45 @@ where
                 self.show_placeholder = false;
             }
             // text.edit(self.selection.range(), preedit_txt);
-            let original_text = self.preedit_base_backup.clone().unwrap_or("".to_string());
-            let preedit_range = match cursor {
-                Some((start, end)) => {
-                    let start = start.min(end).min(original_text.len());
-                    let end = end.min(start).min(original_text.len());
-                    start..end
-                }
-                None => 0..0,
-            };
+            if self.preedit_base_backup.is_none() {
+                self.preedit_base_backup = Some(text.to_string());
+            }
+            let original_text = self.preedit_base_backup.as_ref().unwrap();
+            // let original_text = if self.preedit_base_backup.is_some() {
+            //     self.preedit_base_backup.take().unwrap()
+            // } else {
+            //     text.to_string()
+            // };
+            // let preedit_range = match cursor {
+            //     Some((start, end)) => {
+            //         let start = start.min(end).min(original_text.len());
+            //         let end = end.min(start).min(original_text.len());
+            //         start..end
+            //     }
+            //     None => 0..0,
+            // };
             let mut finall = format!("{}{}", original_text, preedit_txt);
             // text = &mut finall;
-            // text.edit(Range::from(0..text.len()), preedit_txt);
+            let start = cursor.unwrap_or((0, 0)).0;
+            let end = cursor.unwrap_or((0, 0)).1;
+            text.edit(Range { start: 0, end: text.len() }, original_text);
+            text.edit(self.selection.range(), preedit_txt);
 
             // self.selection = Selection::caret(self.selection.min() + preedit_txt.len());
-            // self.show_placeholder = text.is_empty();
+            self.show_placeholder = text.is_empty();
             cx.style.needs_text_update(cx.current);
         }
 
         cx.style.needs_text_update(cx.current);
+    }
+
+    fn clear_preedit(&mut self, cx: &mut EventContext) {
+        if let Some(text) = cx.style.text.get_mut(cx.current) {
+            if let Some(backup_txt) = self.preedit_base_backup.take() {
+                text.edit(Range { start: 0, end: text.len() }, backup_txt);
+            }
+        }
+        self.preedit_base_backup = None;
     }
 
     fn delete_text(&mut self, cx: &mut EventContext, movement: Movement) {
@@ -923,6 +945,7 @@ where
                 if !cx.modifiers.ctrl() && !cx.modifiers.logo() && self.edit && !cx.is_read_only() {
                     println!("Textbox got IME Commit: {}", text);
                     self.reset_caret_timer(cx);
+                    cx.emit(TextEvent::ClearPreedit);
                     cx.emit(TextEvent::InsertText(text.to_string()));
                 }
             }
@@ -1184,6 +1207,10 @@ where
 
             TextEvent::UpdatePreedit(preedit, cursor) => {
                 self.update_preedit(cx, preedit, *cursor);
+            }
+
+            TextEvent::ClearPreedit => {
+                self.clear_preedit(cx);
             }
 
             TextEvent::Clear => {
