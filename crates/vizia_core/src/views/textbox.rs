@@ -209,12 +209,19 @@ where
 
     fn insert_text(&mut self, cx: &mut EventContext, txt: &str) {
         if let Some(text) = cx.style.text.get_mut(cx.current) {
+            if self.preedit_base_backup.is_some() {
+                return;
+            }
+
             if self.show_placeholder && !txt.is_empty() {
                 text.clear();
                 self.show_placeholder = false;
             }
+
             text.edit(self.selection.range(), txt);
+
             self.selection = Selection::caret(self.selection.min() + txt.len());
+
             self.show_placeholder = text.is_empty();
             cx.style.needs_text_update(cx.current);
         }
@@ -228,7 +235,10 @@ where
     ) {
         // self.preedit = if preedit_txt.is_empty() { None } else { Some(preedit_txt.to_string()) };
         if let Some(mut text) = cx.style.text.get_mut(cx.current) {
-            if self.show_placeholder && !preedit_txt.is_empty() {
+            if preedit_txt.is_empty() || cursor.is_none() {
+                return;
+            }
+            if self.show_placeholder {
                 text.clear();
                 self.show_placeholder = false;
             }
@@ -252,10 +262,13 @@ where
             // };
             let mut finall = format!("{}{}", original_text, preedit_txt);
             // text = &mut finall;
-            let start = cursor.unwrap_or((0, 0)).0;
-            let end = cursor.unwrap_or((0, 0)).1;
+            // let start = cursor.unwrap_or((0, 0)).0;
+            // let end = cursor.unwrap_or((0, 0)).1;
+            println!("before preedit: {}", text);
             text.edit(Range { start: 0, end: text.len() }, original_text);
-            text.edit(self.selection.range(), preedit_txt);
+            println!("after preedit: {}", text);
+            println!("selection: {:?}, preedit_txt: {}", self.selection, preedit_txt);
+            // text.edit(self.selection.range(), preedit_txt);
 
             // self.selection = Selection::caret(self.selection.min() + preedit_txt.len());
             self.show_placeholder = text.is_empty();
@@ -1221,7 +1234,7 @@ where
             }
 
             TextEvent::DeleteText(movement) => {
-                if self.edit {
+                if self.edit && !self.preedit_base_backup.is_some() {
                     self.delete_text(cx, *movement);
 
                     let text = self.clone_text(cx);
