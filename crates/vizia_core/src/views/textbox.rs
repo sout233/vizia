@@ -82,7 +82,9 @@ pub struct Textbox<L: Lens> {
     show_caret: bool,
     caret_timer: Timer,
     selection: Selection,
-    preedit_base_backup: Option<String>,
+    // preedit_base_backup: Option<String>,
+    preedit_selection_backup: Option<Selection>,
+    prev_preedit_text_backup: Option<String>,
 }
 
 // Determines whether the enter key submits the text or inserts a new line.
@@ -169,7 +171,8 @@ where
             show_caret: true,
             caret_timer,
             selection: Selection::new(0, 0),
-            preedit_base_backup: None,
+            preedit_selection_backup: None,
+            prev_preedit_text_backup: None,
         }
         .build(cx, move |cx| {
             cx.add_listener(move |textbox: &mut Self, cx, event| {
@@ -242,11 +245,20 @@ where
                 text.clear();
                 self.show_placeholder = false;
             }
-            // text.edit(self.selection.range(), preedit_txt);
-            if self.preedit_base_backup.is_none() {
-                self.preedit_base_backup = Some(text.to_string());
+            let original_selection = self.preedit_selection_backup;
+            let prev_preedit_text = self.prev_preedit_text_backup;
+            if original_selection.is_none() || prev_preedit_text.is_none() {
+                self.preedit_selection_backup = Some(self.selection);
+                self.prev_preedit_text_backup = Some(preedit_txt.to_string());
             }
-            let original_text = self.preedit_base_backup.as_ref().unwrap();
+            let original_selection = original_selection.unwrap();
+            let prev_preedit_text = prev_preedit_text.unwrap();
+
+            // text.edit(self.selection.range(), preedit_txt);
+            // if self.preedit_base_backup.is_none() {
+            //     self.preedit_base_backup = Some(text.to_string());
+            // }
+            // let original_text = self.preedit_base_backup.as_ref().unwrap();
             // let original_text = if self.preedit_base_backup.is_some() {
             //     self.preedit_base_backup.take().unwrap()
             // } else {
@@ -260,15 +272,17 @@ where
             //     }
             //     None => 0..0,
             // };
-            let mut finall = format!("{}{}", original_text, preedit_txt);
+            // let mut finall = format!("{}{}", original_text, preedit_txt);
             // text = &mut finall;
             // let start = cursor.unwrap_or((0, 0)).0;
             // let end = cursor.unwrap_or((0, 0)).1;
-            println!("before preedit: {}", text);
-            text.edit(Range { start: 0, end: text.len() }, original_text);
-            println!("after preedit: {}", text);
-            println!("selection: {:?}, preedit_txt: {}", self.selection, preedit_txt);
+            // text.edit(Range { start: 0, end: text.len() }, original_text);
             // text.edit(self.selection.range(), preedit_txt);
+            text.replace_range(original_selection.min()..prev_preedit_text.len(), "");
+            self.edit(original_selection.range(), preedit_txt);
+            self.selection = Selection::caret(
+                self.selection.min() - prev_preedit_text.len() + preedit_txt.len(),
+            );
 
             // self.selection = Selection::caret(self.selection.min() + preedit_txt.len());
             self.show_placeholder = text.is_empty();
