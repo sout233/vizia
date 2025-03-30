@@ -273,8 +273,15 @@ where
 
                 text.insert_str(start, preedit_txt);
 
-                let new_caret = original_selection.min() + preedit_txt.chars().count();
-                self.selection = Selection::caret(new_caret);
+                // TODO: Implement cursor selection for IME.
+                if let Some((cursor_index, _)) = cursor {
+                    let new_caret = original_selection.min() + cursor_index;
+                    self.selection = Selection::caret(new_caret);
+                } else {
+                    // If there is no valid cursor, the default behavior is to move to the end of the text.
+                    let new_caret = original_selection.min() + preedit_txt.chars().count();
+                    self.selection = Selection::caret(new_caret);
+                }
 
                 self.show_placeholder = text.is_empty();
                 self.prev_preedit_text_backup = Some(preedit_txt.to_string());
