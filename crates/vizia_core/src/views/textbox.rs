@@ -272,7 +272,6 @@ where
 
             self.show_placeholder = text.is_empty();
             self.prev_preedit_text_backup = Some(preedit_txt.to_string());
-            cx.style.needs_text_update(cx.current);
         }
 
         cx.style.needs_text_update(cx.current);
@@ -280,23 +279,16 @@ where
 
     fn clear_preedit(&mut self, cx: &mut EventContext) {
         if let Some(text) = cx.style.text.get_mut(cx.current) {
-            println!("clear preedit");
+            if let (Some(original_selection), Some(prev_preedit_text)) =
+                (self.preedit_selection_backup.take(), self.prev_preedit_text_backup.take())
+            {
+                let start = original_selection.min();
+                let end = start + prev_preedit_text.chars().map(|c| c.len_utf8()).sum::<usize>();
 
-            if let Some(original_selection) = self.preedit_selection_backup.take() {
-                if let Some(prev_preedit_text) = self.prev_preedit_text_backup.take() {
-                    println!("clear prev_preedit: {}", prev_preedit_text);
-                    let start = original_selection.min();
-
-                    let end =
-                        start + prev_preedit_text.chars().map(|c| c.len_utf8()).sum::<usize>();
-
-                    text.replace_range(start..end, "");
-                }
+                text.replace_range(start..end, "");
                 self.selection = original_selection;
             }
 
-            self.prev_preedit_text_backup = None;
-            self.preedit_selection_backup = None;
             self.show_placeholder = text.is_empty();
         }
     }
