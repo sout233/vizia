@@ -237,6 +237,7 @@ where
             if preedit_txt.is_empty() || cursor.is_none() {
                 return;
             }
+
             if self.show_placeholder {
                 text.clear();
                 self.show_placeholder = false;
@@ -253,13 +254,21 @@ where
             println!("preedit: {}", preedit_txt);
             println!("prev_preedit: {}", prev_preedit_text);
 
+            // Move the cursor only
+            if prev_preedit_text == preedit_txt {
+                let new_selection = Selection::caret(original_selection.min() + cursor.unwrap().0);
+                self.selection = new_selection;
+                cx.style.needs_text_update(cx.current);
+                return;
+            }
+
             // Bytes index
             let start = original_selection.min();
             let end = start + prev_preedit_text.chars().map(|c| c.len_utf8()).sum::<usize>();
 
             println!("start: {}, end: {}", start, end);
 
-            // Delete original preedit
+            // Delete old preedit text
             if end > start {
                 println!("text: {}", text);
                 text.replace_range(start..end, "");
@@ -351,7 +360,14 @@ where
         }
     }
 
+    /// When IME is enabled, the cursor movement logic will be controlled by [`update_preedit`].
+    ///
+    /// [`update_preedit`]: Textbox::update_preedit
     fn move_cursor(&mut self, cx: &mut EventContext, movement: Movement, selection: bool) {
+        if self.preedit_selection_backup.is_some() || self.prev_preedit_text_backup.is_some() {
+            return;
+        }
+
         if let Some(text) = cx.style.text.get_mut(cx.current) {
             if let Some(paragraph) = cx.text_context.text_paragraphs.get(cx.current) {
                 let new_selection =
@@ -1266,7 +1282,7 @@ where
             }
 
             TextEvent::MoveCursor(movement, selection) => {
-                if self.edit && !self.show_placeholder {
+                if self.edit && !self.show_placeholder && self.preedit_selection_backup.is_none() {
                     self.move_cursor(cx, *movement, *selection);
                 }
             }
