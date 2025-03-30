@@ -583,6 +583,8 @@ impl ApplicationHandler<UserEvent> for Application {
             winit::event::WindowEvent::Ime(ime) => match ime {
                 winit::event::Ime::Enabled => {
                     println!("IME enabled");
+                    // window.window().set_ime_cursor_area(None, None);
+                    self.cx.emit_window_event(window.entity, WindowEvent::ImeActivate(true));
                 }
                 winit::event::Ime::Preedit(text, cursor) => {
                     println!("Preedit: {:?}, Cursor: {:?}", text, cursor);
@@ -594,6 +596,7 @@ impl ApplicationHandler<UserEvent> for Application {
                 }
                 winit::event::Ime::Disabled => {
                     println!("IME disabled");
+                    self.cx.emit_window_event(window.entity, WindowEvent::ImeActivate(false));
                 }
             },
             winit::event::WindowEvent::CursorMoved { device_id: _, position } => {

@@ -542,6 +542,17 @@ where
         }
     }
 
+    fn reset_ime_position(&mut self, cx: &mut EventContext) {
+        // TODO: Make the position of IME follow the cursor.
+        cx.event_queue.push_back(
+            Event::new(WindowEvent::SetImeCursorArea(
+                (cx.bounds().x as u32, cx.bounds().y as u32),
+                ((cx.bounds().width()) as u32, cx.bounds().height() as u32),
+            ))
+            .target(cx.current),
+        );
+    }
+
     fn draw_selection(&self, cx: &mut DrawContext, canvas: &Canvas) {
         if !self.selection.is_caret() {
             if let Some(paragraph) = cx.text_context.text_paragraphs.get(cx.current) {
@@ -991,6 +1002,8 @@ where
                     self.reset_caret_timer(cx);
                     cx.emit(TextEvent::ClearPreedit);
                     cx.emit(TextEvent::InsertText(text.to_string()));
+
+                    self.reset_ime_position(cx);
                 }
             }
 
@@ -1301,6 +1314,7 @@ where
                     cx.capture();
                     cx.set_checked(true);
                     self.reset_caret_timer(cx);
+                    self.reset_ime_position(cx);
 
                     let text = self.lens.get(cx);
                     let text = text.to_string_local(cx);
