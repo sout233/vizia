@@ -233,11 +233,11 @@ where
         preedit_txt: &str,
         cursor: Option<(usize, usize)>,
     ) {
-        if let Some(text) = cx.style.text.get_mut(cx.current) {
-            if preedit_txt.is_empty() || cursor.is_none() {
-                return;
-            }
+        if preedit_txt.is_empty() || cursor.is_none() {
+            return;
+        }
 
+        if let Some(text) = cx.style.text.get_mut(cx.current) {
             if self.show_placeholder {
                 text.clear();
                 self.show_placeholder = false;
@@ -254,36 +254,34 @@ where
             println!("preedit: {}", preedit_txt);
             println!("prev_preedit: {}", prev_preedit_text);
 
-            // Move the cursor only
             if prev_preedit_text == preedit_txt {
+                // Move the cursor only
                 let new_selection = Selection::caret(original_selection.min() + cursor.unwrap().0);
                 self.selection = new_selection;
-                cx.style.needs_text_update(cx.current);
-                return;
+            } else {
+                // Bytes index
+                let start = original_selection.min();
+                let end = start + prev_preedit_text.chars().map(|c| c.len_utf8()).sum::<usize>();
+
+                println!("start: {}, end: {}", start, end);
+
+                // Delete old preedit text
+                if end > start && end <= text.len() {
+                    println!("text: {}", text);
+                    text.replace_range(start..end, "");
+                }
+
+                text.insert_str(start, preedit_txt);
+
+                let new_caret = original_selection.min() + preedit_txt.chars().count();
+                self.selection = Selection::caret(new_caret);
+
+                self.show_placeholder = text.is_empty();
+                self.prev_preedit_text_backup = Some(preedit_txt.to_string());
             }
 
-            // Bytes index
-            let start = original_selection.min();
-            let end = start + prev_preedit_text.chars().map(|c| c.len_utf8()).sum::<usize>();
-
-            println!("start: {}, end: {}", start, end);
-
-            // Delete old preedit text
-            if end > start {
-                println!("text: {}", text);
-                text.replace_range(start..end, "");
-            }
-
-            text.insert_str(start, preedit_txt);
-
-            let new_caret = original_selection.min() + preedit_txt.chars().count();
-            self.selection = Selection::caret(new_caret);
-
-            self.show_placeholder = text.is_empty();
-            self.prev_preedit_text_backup = Some(preedit_txt.to_string());
+            cx.style.needs_text_update(cx.current);
         }
-
-        cx.style.needs_text_update(cx.current);
     }
 
     fn clear_preedit(&mut self, cx: &mut EventContext) {
