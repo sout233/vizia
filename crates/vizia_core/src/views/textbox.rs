@@ -1,5 +1,3 @@
-use std::ops::Range;
-
 // use crate::accessibility::IntoNode;
 use crate::prelude::*;
 
@@ -82,7 +80,8 @@ pub struct Textbox<L: Lens> {
     show_caret: bool,
     caret_timer: Timer,
     selection: Selection,
-    preedit_base_backup: Option<String>,
+    preedit_selection_backup: Option<Selection>,
+    prev_preedit_text_backup: Option<String>,
 }
 
 // Determines whether the enter key submits the text or inserts a new line.
@@ -169,7 +168,8 @@ where
             show_caret: true,
             caret_timer,
             selection: Selection::new(0, 0),
-            preedit_base_backup: None,
+            preedit_selection_backup: None,
+            prev_preedit_text_backup: None,
         }
         .build(cx, move |cx| {
             cx.add_listener(move |textbox: &mut Self, cx, event| {
@@ -209,7 +209,7 @@ where
 
     fn insert_text(&mut self, cx: &mut EventContext, txt: &str) {
         if let Some(text) = cx.style.text.get_mut(cx.current) {
-            if self.preedit_base_backup.is_some() {
+            if self.preedit_selection_backup.is_some() || self.prev_preedit_text_backup.is_some() {
                 return;
             }
 
@@ -233,8 +233,7 @@ where
         preedit_txt: &str,
         cursor: Option<(usize, usize)>,
     ) {
-        // self.preedit = if preedit_txt.is_empty() { None } else { Some(preedit_txt.to_string()) };
-        if let Some(mut text) = cx.style.text.get_mut(cx.current) {
+        if let Some(text) = cx.style.text.get_mut(cx.current) {
             if preedit_txt.is_empty() || cursor.is_none() {
                 return;
             }
@@ -242,36 +241,37 @@ where
                 text.clear();
                 self.show_placeholder = false;
             }
-            // text.edit(self.selection.range(), preedit_txt);
-            if self.preedit_base_backup.is_none() {
-                self.preedit_base_backup = Some(text.to_string());
-            }
-            let original_text = self.preedit_base_backup.as_ref().unwrap();
-            // let original_text = if self.preedit_base_backup.is_some() {
-            //     self.preedit_base_backup.take().unwrap()
-            // } else {
-            //     text.to_string()
-            // };
-            // let preedit_range = match cursor {
-            //     Some((start, end)) => {
-            //         let start = start.min(end).min(original_text.len());
-            //         let end = end.min(start).min(original_text.len());
-            //         start..end
-            //     }
-            //     None => 0..0,
-            // };
-            let mut finall = format!("{}{}", original_text, preedit_txt);
-            // text = &mut finall;
-            // let start = cursor.unwrap_or((0, 0)).0;
-            // let end = cursor.unwrap_or((0, 0)).1;
-            println!("before preedit: {}", text);
-            text.edit(Range { start: 0, end: text.len() }, original_text);
-            println!("after preedit: {}", text);
-            println!("selection: {:?}, preedit_txt: {}", self.selection, preedit_txt);
-            // text.edit(self.selection.range(), preedit_txt);
 
-            // self.selection = Selection::caret(self.selection.min() + preedit_txt.len());
+            // Backup
+            if self.preedit_selection_backup.is_none() || self.prev_preedit_text_backup.is_none() {
+                self.preedit_selection_backup = Some(self.selection);
+                self.prev_preedit_text_backup = Some(String::new());
+            }
+
+            let original_selection = self.preedit_selection_backup.unwrap();
+            let prev_preedit_text = self.prev_preedit_text_backup.as_ref().unwrap();
+            println!("preedit: {}", preedit_txt);
+            println!("prev_preedit: {}", prev_preedit_text);
+
+            // Bytes index
+            let start = original_selection.min();
+            let end = start + prev_preedit_text.chars().map(|c| c.len_utf8()).sum::<usize>();
+
+            println!("start: {}, end: {}", start, end);
+
+            // Delete original preedit
+            if end > start {
+                println!("text: {}", text);
+                text.replace_range(start..end, "");
+            }
+
+            text.insert_str(start, preedit_txt);
+
+            let new_caret = original_selection.min() + preedit_txt.chars().count();
+            self.selection = Selection::caret(new_caret);
+
             self.show_placeholder = text.is_empty();
+            self.prev_preedit_text_backup = Some(preedit_txt.to_string());
             cx.style.needs_text_update(cx.current);
         }
 
@@ -280,14 +280,32 @@ where
 
     fn clear_preedit(&mut self, cx: &mut EventContext) {
         if let Some(text) = cx.style.text.get_mut(cx.current) {
-            if let Some(backup_txt) = self.preedit_base_backup.take() {
-                text.edit(Range { start: 0, end: text.len() }, backup_txt);
+            println!("clear preedit");
+
+            if let Some(original_selection) = self.preedit_selection_backup.take() {
+                if let Some(prev_preedit_text) = self.prev_preedit_text_backup.take() {
+                    println!("clear prev_preedit: {}", prev_preedit_text);
+                    let start = original_selection.min();
+
+                    let end =
+                        start + prev_preedit_text.chars().map(|c| c.len_utf8()).sum::<usize>();
+
+                    text.replace_range(start..end, "");
+                }
+                self.selection = original_selection;
             }
+
+            self.prev_preedit_text_backup = None;
+            self.preedit_selection_backup = None;
+            self.show_placeholder = text.is_empty();
         }
-        self.preedit_base_backup = None;
     }
 
     fn delete_text(&mut self, cx: &mut EventContext, movement: Movement) {
+        if self.preedit_selection_backup.is_some() || self.prev_preedit_text_backup.is_some() {
+            return;
+        }
+
         if self.selection.is_caret() {
             if movement == Movement::Grapheme(Direction::Upstream) {
                 if self.selection.active == 0 {
@@ -1234,7 +1252,7 @@ where
             }
 
             TextEvent::DeleteText(movement) => {
-                if self.edit && !self.preedit_base_backup.is_some() {
+                if self.edit {
                     self.delete_text(cx, *movement);
 
                     let text = self.clone_text(cx);
