@@ -10,6 +10,7 @@ use accesskit::{ActionData, ActionRequest};
 use skia_safe::textlayout::{RectHeightStyle, RectWidthStyle};
 use skia_safe::{Paint, PaintStyle, Rect};
 use unicode_segmentation::UnicodeSegmentation;
+use vizia_input::ImeState;
 
 /// Events for modifying a textbox.
 pub enum TextEvent {
@@ -209,7 +210,7 @@ where
 
     fn insert_text(&mut self, cx: &mut EventContext, txt: &str) {
         if let Some(text) = cx.style.text.get_mut(cx.current) {
-            if self.preedit_selection_backup.is_some() || self.prev_preedit_text_backup.is_some() {
+            if cx.ime_state.is_active() {
                 return;
             }
 
@@ -244,10 +245,16 @@ where
             }
 
             // Backup
-            if self.preedit_selection_backup.is_none() || self.prev_preedit_text_backup.is_none() {
-                self.preedit_selection_backup = Some(self.selection);
-                self.prev_preedit_text_backup = Some(String::new());
-            }
+            // if cx.ime_state.is_composing() {
+            //     cx.ime_state = &mut ImeState::Composing {
+            //         preedit: Some(preedit_txt.to_string()),
+            //         cursor_pos: cursor,
+            //     }
+            // }
+            // if self.preedit_selection_backup.is_none() || self.prev_preedit_text_backup.is_none() {
+            //     self.preedit_selection_backup = Some(self.selection);
+            //     self.prev_preedit_text_backup = Some(String::new());
+            // }
 
             let original_selection = self.preedit_selection_backup.unwrap();
             let prev_preedit_text = self.prev_preedit_text_backup.as_ref().unwrap();
