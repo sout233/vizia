@@ -9,6 +9,7 @@ use crate::{
 use accesskit_winit::Adapter;
 use hashbrown::HashMap;
 use std::{error::Error, fmt::Display, sync::Arc};
+use vizia_input::ImeState;
 
 // #[cfg(feature = "accesskit")]
 // use accesskit::{Action, NodeBuilder, NodeId, TreeUpdate};
@@ -588,10 +589,12 @@ impl ApplicationHandler<UserEvent> for Application {
                 }
                 winit::event::Ime::Preedit(text, cursor) => {
                     println!("Preedit: {:?}, Cursor: {:?}", text, cursor);
+                    // self.cx.0.set_ime_state(ImeState::Composing);
                     self.cx.emit_window_event(window.entity, WindowEvent::ImePreedit(text, cursor));
                 }
                 winit::event::Ime::Commit(text) => {
                     println!("Commit: {:?}", text);
+                    self.cx.0.set_ime_state(ImeState::EndComposition);
                     self.cx.emit_window_event(window.entity, WindowEvent::ImeCommit(text));
                 }
                 winit::event::Ime::Disabled => {
