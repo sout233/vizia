@@ -210,6 +210,7 @@ where
 
     fn insert_text(&mut self, cx: &mut EventContext, txt: &str) {
         if let Some(text) = cx.style.text.get_mut(cx.current) {
+            println!("{:?}", cx.ime_state);
             if cx.ime_state.is_active() {
                 return;
             }
@@ -251,10 +252,10 @@ where
             //         cursor_pos: cursor,
             //     }
             // }
-            // if self.preedit_selection_backup.is_none() || self.prev_preedit_text_backup.is_none() {
-            //     self.preedit_selection_backup = Some(self.selection);
-            //     self.prev_preedit_text_backup = Some(String::new());
-            // }
+            if self.preedit_selection_backup.is_none() || self.prev_preedit_text_backup.is_none() {
+                self.preedit_selection_backup = Some(self.selection);
+                self.prev_preedit_text_backup = Some(String::new());
+            }
 
             let original_selection = self.preedit_selection_backup.unwrap();
             let prev_preedit_text = self.prev_preedit_text_backup.as_ref().unwrap();
