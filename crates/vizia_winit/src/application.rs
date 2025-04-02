@@ -585,11 +585,15 @@ impl ApplicationHandler<UserEvent> for Application {
                 winit::event::Ime::Enabled => {
                     println!("IME enabled");
                     // window.window().set_ime_cursor_area(None, None);
+                    self.cx.0.set_ime_state(ImeState::StartComposition);
                     self.cx.emit_window_event(window.entity, WindowEvent::ImeActivate(true));
                 }
                 winit::event::Ime::Preedit(text, cursor) => {
                     println!("Preedit: {:?}, Cursor: {:?}", text, cursor);
-                    // self.cx.0.set_ime_state(ImeState::Composing);
+                    self.cx.0.set_ime_state(ImeState::Composing {
+                        preedit: Some(text.clone()),
+                        cursor_pos: cursor,
+                    });
                     self.cx.emit_window_event(window.entity, WindowEvent::ImePreedit(text, cursor));
                 }
                 winit::event::Ime::Commit(text) => {
@@ -599,6 +603,7 @@ impl ApplicationHandler<UserEvent> for Application {
                 }
                 winit::event::Ime::Disabled => {
                     println!("IME disabled");
+                    self.cx.0.set_ime_state(ImeState::Inactive);
                     self.cx.emit_window_event(window.entity, WindowEvent::ImeActivate(false));
                 }
             },
