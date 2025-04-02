@@ -1,7 +1,7 @@
 use super::Selection;
 
 #[derive(Debug, Clone)]
-struct PreeditBackup {
+pub struct PreeditBackup {
     pub prev_preedit: String,
     pub original_selection: Selection,
 }
@@ -16,5 +16,9 @@ impl PreeditBackup {
         let len = self.prev_preedit.len();
         let active = min + len;
         Selection { anchor: min, active, h_pos: None }
+    }
+
+    pub fn set_prev_preedit(&mut self, preedit: String) {
+        self.prev_preedit = preedit;
     }
 }

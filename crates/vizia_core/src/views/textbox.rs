@@ -2,15 +2,14 @@
 use crate::prelude::*;
 
 use crate::text::{
-    apply_movement, offset_for_delete_backwards, Direction, EditableText, Movement, Selection,
-    VerticalMovement,
+    apply_movement, offset_for_delete_backwards, Direction, EditableText, Movement, PreeditBackup,
+    Selection, VerticalMovement,
 };
 // use crate::views::scrollview::SCROLL_SENSITIVITY;
 use accesskit::{ActionData, ActionRequest};
 use skia_safe::textlayout::{RectHeightStyle, RectWidthStyle};
 use skia_safe::{Paint, PaintStyle, Rect};
 use unicode_segmentation::UnicodeSegmentation;
-use vizia_input::ImeState;
 
 /// Events for modifying a textbox.
 pub enum TextEvent {
@@ -81,8 +80,9 @@ pub struct Textbox<L: Lens> {
     show_caret: bool,
     caret_timer: Timer,
     selection: Selection,
-    preedit_selection_backup: Option<Selection>,
-    prev_preedit_text_backup: Option<String>,
+    preedit_backup: Option<PreeditBackup>,
+    // preedit_selection_backup: Option<Selection>,
+    // prev_preedit_text_backup: Option<String>,
 }
 
 // Determines whether the enter key submits the text or inserts a new line.
@@ -169,8 +169,9 @@ where
             show_caret: true,
             caret_timer,
             selection: Selection::new(0, 0),
-            preedit_selection_backup: None,
-            prev_preedit_text_backup: None,
+            preedit_backup: None,
+            // preedit_selection_backup: None,
+            // prev_preedit_text_backup: None,
         }
         .build(cx, move |cx| {
             cx.add_listener(move |textbox: &mut Self, cx, event| {
@@ -211,7 +212,7 @@ where
     fn insert_text(&mut self, cx: &mut EventContext, txt: &str) {
         if let Some(text) = cx.style.text.get_mut(cx.current) {
             println!("{:?}", cx.ime_state);
-            if cx.ime_state.is_active() {
+            if self.preedit_backup.is_some() {
                 return;
             }
 
@@ -252,13 +253,18 @@ where
             //         cursor_pos: cursor,
             //     }
             // }
-            if self.preedit_selection_backup.is_none() || self.prev_preedit_text_backup.is_none() {
-                self.preedit_selection_backup = Some(self.selection);
-                self.prev_preedit_text_backup = Some(String::new());
+            // if self.preedit_selection_backup.is_none() || self.prev_preedit_text_backup.is_none() {
+            //     self.preedit_selection_backup = Some(self.selection);
+            //     self.prev_preedit_text_backup = Some(String::new());
+            // }
+
+            if self.preedit_backup.is_none() {
+                self.preedit_backup = Some(PreeditBackup::new(String::new(), self.selection));
             }
 
-            let original_selection = self.preedit_selection_backup.unwrap();
-            let prev_preedit_text = self.prev_preedit_text_backup.as_ref().unwrap();
+            let original_selection = self.preedit_backup.as_ref().unwrap().original_selection;
+            let prev_preedit_text = self.preedit_backup.as_ref().unwrap().prev_preedit.clone();
+
             println!("preedit: {}", preedit_txt);
             println!("prev_preedit: {}", prev_preedit_text);
 
@@ -292,7 +298,7 @@ where
                 }
 
                 self.show_placeholder = text.is_empty();
-                self.prev_preedit_text_backup = Some(preedit_txt.to_string());
+                self.preedit_backup.as_mut().unwrap().set_prev_preedit(preedit_txt.to_string());
             }
 
             cx.style.needs_text_update(cx.current);
@@ -301,14 +307,17 @@ where
 
     fn clear_preedit(&mut self, cx: &mut EventContext) {
         if let Some(text) = cx.style.text.get_mut(cx.current) {
-            if let (Some(original_selection), Some(prev_preedit_text)) =
-                (self.preedit_selection_backup.take(), self.prev_preedit_text_backup.take())
-            {
+            if let Some(preedit_backup) = self.preedit_backup.as_ref() {
+                let original_selection = preedit_backup.original_selection;
+                let prev_preedit_text = preedit_backup.prev_preedit.clone();
+
                 let start = original_selection.min();
                 let end = start + prev_preedit_text.chars().map(|c| c.len_utf8()).sum::<usize>();
 
                 text.replace_range(start..end, "");
                 self.selection = original_selection;
+
+                self.preedit_backup = None;
             }
 
             self.show_placeholder = text.is_empty();
@@ -316,7 +325,7 @@ where
     }
 
     fn delete_text(&mut self, cx: &mut EventContext, movement: Movement) {
-        if self.preedit_selection_backup.is_some() || self.prev_preedit_text_backup.is_some() {
+        if self.preedit_backup.is_some() {
             return;
         }
 
@@ -377,7 +386,7 @@ where
     ///
     /// [`update_preedit`]: Textbox::update_preedit
     fn move_cursor(&mut self, cx: &mut EventContext, movement: Movement, selection: bool) {
-        if self.preedit_selection_backup.is_some() || self.prev_preedit_text_backup.is_some() {
+        if self.preedit_backup.is_some() {
             return;
         }
 
@@ -1308,7 +1317,7 @@ where
             }
 
             TextEvent::MoveCursor(movement, selection) => {
-                if self.edit && !self.show_placeholder && self.preedit_selection_backup.is_none() {
+                if self.edit && !self.show_placeholder && self.preedit_backup.is_none() {
                     self.move_cursor(cx, *movement, *selection);
                 }
             }
