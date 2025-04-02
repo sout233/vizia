@@ -222,6 +222,8 @@ where
             }
 
             text.edit(self.selection.range(), txt);
+            println!("text: '{}'", text);
+            println!("text is empty: '{}'", text.is_empty());
 
             self.selection = Selection::caret(self.selection.min() + txt.len());
 
@@ -297,7 +299,7 @@ where
                     self.selection = Selection::caret(new_caret);
                 }
 
-                self.show_placeholder = text.is_empty();
+                // self.show_placeholder = text.is_empty();
                 self.preedit_backup.as_mut().unwrap().set_prev_preedit(preedit_txt.to_string());
             }
 
@@ -313,14 +315,19 @@ where
 
                 let start = original_selection.min();
                 let end = start + prev_preedit_text.chars().map(|c| c.len_utf8()).sum::<usize>();
+                println!("clear start: {}, end: {}", start, end);
+                println!("text len: {}", text.len());
 
+                println!("text: '{}'", text);
                 text.replace_range(start..end, "");
+
                 self.selection = original_selection;
 
                 self.preedit_backup = None;
             }
 
-            self.show_placeholder = text.is_empty();
+            // self.show_placeholder = text.is_empty();
+            // cx.style.needs_text_update(cx.current);
         }
     }
 
