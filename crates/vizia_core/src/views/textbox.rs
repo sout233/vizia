@@ -84,8 +84,6 @@ pub struct Textbox<L: Lens> {
     caret_timer: Timer,
     selection: Selection,
     preedit_backup: Option<PreeditBackup>,
-    // preedit_selection_backup: Option<Selection>,
-    // prev_preedit_text_backup: Option<String>,
 }
 
 // Determines whether the enter key submits the text or inserts a new line.
@@ -173,8 +171,6 @@ where
             caret_timer,
             selection: Selection::new(0, 0),
             preedit_backup: None,
-            // preedit_selection_backup: None,
-            // prev_preedit_text_backup: None,
         }
         .build(cx, move |cx| {
             cx.add_listener(move |textbox: &mut Self, cx, event| {
@@ -262,12 +258,22 @@ where
                 self.show_placeholder = false;
             }
 
-            if self.preedit_backup.is_none() {
-                self.preedit_backup = Some(PreeditBackup::new(String::new(), self.selection));
+            if !self.selection.is_caret() {
+                let start = self.selection.min();
+                let end = self.selection.max();
+
+                if end > start && end <= text.len() {
+                    text.replace_range(start..end, "");
+                }
+                self.selection = Selection::caret(start);
             }
 
-            let original_selection = self.preedit_backup.as_ref().unwrap().original_selection;
-            let prev_preedit_text = self.preedit_backup.as_ref().unwrap().prev_preedit.clone();
+            let preedit_backup = self
+                .preedit_backup
+                .get_or_insert_with(|| PreeditBackup::new(String::new(), self.selection));
+
+            let original_selection = preedit_backup.original_selection;
+            let prev_preedit_text = &preedit_backup.prev_preedit;
 
             if prev_preedit_text == preedit_txt {
                 // Move the cursor only
