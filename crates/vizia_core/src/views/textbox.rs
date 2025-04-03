@@ -228,7 +228,6 @@ where
 
     fn insert_text(&mut self, cx: &mut EventContext, txt: &str) {
         if let Some(text) = cx.style.text.get_mut(cx.current) {
-            println!("{:?}", cx.ime_state);
             if self.preedit_backup.is_some() {
                 return;
             }
@@ -239,8 +238,6 @@ where
             }
 
             text.edit(self.selection.range(), txt);
-            println!("text: '{}'", text);
-            println!("text is empty: '{}'", text.is_empty());
 
             self.selection = Selection::caret(self.selection.min() + txt.len());
 
@@ -265,27 +262,12 @@ where
                 self.show_placeholder = false;
             }
 
-            // Backup
-            // if cx.ime_state.is_composing() {
-            //     cx.ime_state = &mut ImeState::Composing {
-            //         preedit: Some(preedit_txt.to_string()),
-            //         cursor_pos: cursor,
-            //     }
-            // }
-            // if self.preedit_selection_backup.is_none() || self.prev_preedit_text_backup.is_none() {
-            //     self.preedit_selection_backup = Some(self.selection);
-            //     self.prev_preedit_text_backup = Some(String::new());
-            // }
-
             if self.preedit_backup.is_none() {
                 self.preedit_backup = Some(PreeditBackup::new(String::new(), self.selection));
             }
 
             let original_selection = self.preedit_backup.as_ref().unwrap().original_selection;
             let prev_preedit_text = self.preedit_backup.as_ref().unwrap().prev_preedit.clone();
-
-            println!("preedit: {}", preedit_txt);
-            println!("prev_preedit: {}", prev_preedit_text);
 
             if prev_preedit_text == preedit_txt {
                 // Move the cursor only
@@ -296,17 +278,13 @@ where
                 let start = original_selection.min();
                 let end = start + prev_preedit_text.chars().map(|c| c.len_utf8()).sum::<usize>();
 
-                println!("start: {}, end: {}", start, end);
-
                 // Delete old preedit text
                 if end > start && end <= text.len() {
-                    println!("text: {}", text);
                     text.replace_range(start..end, "");
                 }
 
                 text.insert_str(start, preedit_txt);
 
-                // TODO: Implement cursor selection for IME.
                 if let Some((cursor_index, _)) = cursor {
                     let new_caret = original_selection.min() + cursor_index;
                     self.selection = Selection::caret(new_caret);
@@ -316,7 +294,6 @@ where
                     self.selection = Selection::caret(new_caret);
                 }
 
-                // self.show_placeholder = text.is_empty();
                 self.preedit_backup.as_mut().unwrap().set_prev_preedit(preedit_txt.to_string());
             }
 
@@ -332,19 +309,13 @@ where
 
                 let start = original_selection.min();
                 let end = start + prev_preedit_text.chars().map(|c| c.len_utf8()).sum::<usize>();
-                println!("clear start: {}, end: {}", start, end);
-                println!("text len: {}", text.len());
 
-                println!("text: '{}'", text);
                 text.replace_range(start..end, "");
 
                 self.selection = original_selection;
 
                 self.preedit_backup = None;
             }
-
-            // self.show_placeholder = text.is_empty();
-            // cx.style.needs_text_update(cx.current);
         }
     }
 
@@ -1077,7 +1048,6 @@ where
 
             WindowEvent::ImeCommit(text) => {
                 if !cx.modifiers.ctrl() && !cx.modifiers.logo() && self.edit && !cx.is_read_only() {
-                    println!("Textbox got IME Commit: {}", text);
                     self.reset_caret_timer(cx);
                     cx.emit(TextEvent::ClearPreedit);
                     cx.emit(TextEvent::InsertText(text.to_string()));
